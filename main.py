@@ -19,7 +19,15 @@ from common.dataset.build import build_loader
 from modules.sampler import KGPolicy
 from modules.recommender import MF
 
+os.environ["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+# 手动清除 GPU 缓存
+torch.cuda.empty_cache()
 
+# 于训练基于 Matrix Factorization（MF）和 Knowledge Graph Attention Network（KGAT）的推荐模型的训练代码
+
+# train_one_epoch 函数：用于训练一个 epoch 的推荐模型。
+# 它接收训练数据、模型、优化器等作为输入，
+# 并在每个批次上执行前向传播、反向传播和优化器更新操作。
 def train_one_epoch(
     recommender,
     sampler,
@@ -60,7 +68,7 @@ def train_one_epoch(
         in_train = torch.sum(
             selected_neg_items.unsqueeze(1) == train_set.long(), dim=1
         ).byte()
-        selected_neg_items[in_train] = neg[in_train]
+        selected_neg_items[in_train] = neg[in_train].to(torch.long)
 
         base_loss_batch, reg_loss_batch = recommender(users, pos, selected_neg_items)
         loss_batch = base_loss_batch + reg_loss_batch
@@ -111,6 +119,11 @@ def train_one_epoch(
     return loss, base_loss, reg_loss, avg_reward
 
 
+
+
+
+
+# save_model 函数：用于保存训练好的模型。
 def save_model(file_name, model, config):
     if not os.path.isdir(config.out_dir):
         os.mkdir(config.out_dir)
@@ -122,6 +135,9 @@ def save_model(file_name, model, config):
     torch.save(model.state_dict(), model_file)
 
 
+# build_sampler_graph 函数：
+# 用于构建采样器的邻接矩阵和边矩阵。
+# 在训练过程中，采样器会从知识图谱中采样负样本，这里构建的邻接矩阵和边矩阵用于存储采样器的采样结果。
 def build_sampler_graph(n_nodes, edge_threshold, graph):
     adj_matrix = torch.zeros(n_nodes, edge_threshold * 2)
     edge_matrix = torch.zeros(n_nodes, edge_threshold)
@@ -156,6 +172,9 @@ def build_sampler_graph(n_nodes, edge_threshold, graph):
     return adj_matrix, edge_matrix
 
 
+
+# build_train_data 函数：用于构建训练数据。它将用户-物品交互数据整理成一个张量，用于训练模型。
+
 def build_train_data(train_mat):
     num_user = max(train_mat.keys()) + 1
     num_true = max([len(i) for i in train_mat.values()])
@@ -169,7 +188,7 @@ def build_train_data(train_mat):
 
     return train_data
 
-
+# train 函数：训练主函数。它构建了推荐模型和采样器，并在训练集上进行模型训练。在每个 epoch 结束后，会在测试集上评估模型的性能，并输出评价指标
 def train(train_loader, test_loader, graph, data_config, args_config):
     """build padded training set"""
     train_mat = graph.train_user_dict

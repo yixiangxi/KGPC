@@ -1,6 +1,34 @@
 import argparse
 
 
+# data_path: 输入数据路径，默认为 "../Data/"。
+# dataset: 选择数据集，默认为 "last-fm"。       修改为yelp2018
+# emb_size: 嵌入向量的维度，默认为 64。
+# regs: 用户和物品嵌入的正则化系数，默认为 "1e-5"。
+# gpu_id: GPU 的 ID，默认为 0。
+# k_neg: 列表中负样本的数量，默认为 1。
+# slr: 采样器的学习率，默认为 0.0001。
+# rlr: 推荐模型的学习率，默认为 0.0001。         修改为0.001
+# edge_threshold: 过滤知识图谱的边的阈值，默认为 64。
+# num_sample: 从 GCN 中采样的样本数量，默认为 32。
+# k_step: 从当前正样本到目标样本的步数，默认为 2。
+# in_channel: GCN 的输入通道，默认为 "[64, 32]"。
+# out_channel: GCN 的输出通道，默认为 "[32, 64]"。
+# pretrain_s: 是否加载预训练的采样器数据，默认为 False。
+# batch_size: 训练的批量大小，默认为 1024。
+# test_batch_size: 测试的批量大小，默认为 1024。
+# num_threads: 线程数，默认为 4。
+# epoch: 训练的轮数，默认为 400。  修改为1
+# show_step: 测试步数，默认为 3。  修改为1
+# adj_epoch: 每 _ 轮构建一次邻接矩阵，默认为 1。
+# pretrain_r: 是否使用预训练模型，默认为 True。
+# freeze_s: 是否冻结推荐模型的参数，默认为 False。
+# model_path: 预训练模型的路径，默认为 "model/best_fm.ckpt"。
+# out_dir: 模型输出目录，默认为 "./weights/"。
+# flag_step: 提前停止的步数，默认为 64。
+# gamma: 奖励累积的 gamma 值，默认为 0.99。
+# Ks: 评估时的 K 值列表，默认为 "[20, 40, 60, 80, 100]"。
+
 def parse_args():
     parser = argparse.ArgumentParser(description="Run KGPolicy2.")
     # ------------------------- experimental settings specific for data set --------------------------------------------
@@ -27,7 +55,7 @@ def parse_args():
         "--slr", type=float, default=0.0001, help="Learning rate for sampler."
     )
     parser.add_argument(
-        "--rlr", type=float, default=0.0001, help="Learning rate recommender."
+        "--rlr", type=float, default=0.001, help="Learning rate recommender."
     )
 
     # ------------------------- experimental settings specific for sampler ---------------------------------------------
@@ -64,8 +92,8 @@ def parse_args():
         "--test_batch_size", type=int, default=1024, help="batch size for test"
     )
     parser.add_argument("--num_threads", type=int, default=4, help="number of threads.")
-    parser.add_argument("--epoch", type=int, default=400, help="Number of epoch.")
-    parser.add_argument("--show_step", type=int, default=3, help="test step.")
+    parser.add_argument("--epoch", type=int, default=1, help="Number of epoch.")
+    parser.add_argument("--show_step", type=int, default=1, help="test step.")
     parser.add_argument(
         "--adj_epoch", type=int, default=1, help="build adj matrix per _ epoch"
     )
