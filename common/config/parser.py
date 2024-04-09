@@ -21,7 +21,7 @@ import argparse
 # epoch: 训练的轮数，默认为 400。  修改为1
 # show_step: 测试步数，默认为 3。  修改为1
 # adj_epoch: 每 _ 轮构建一次邻接矩阵，默认为 1。
-# pretrain_r: 是否使用预训练模型，默认为 True。
+# pretrain_r: 是否使用预训练模型，默认为 True。    修改为false
 # freeze_s: 是否冻结推荐模型的参数，默认为 False。
 # model_path: 预训练模型的路径，默认为 "model/best_fm.ckpt"。
 # out_dir: 模型输出目录，默认为 "./weights/"。
@@ -92,13 +92,13 @@ def parse_args():
         "--test_batch_size", type=int, default=1024, help="batch size for test"
     )
     parser.add_argument("--num_threads", type=int, default=4, help="number of threads.")
-    parser.add_argument("--epoch", type=int, default=1, help="Number of epoch.")
+    parser.add_argument("--epoch", type=int, default=5, help="Number of epoch.")
     parser.add_argument("--show_step", type=int, default=1, help="test step.")
     parser.add_argument(
         "--adj_epoch", type=int, default=1, help="build adj matrix per _ epoch"
     )
     parser.add_argument(
-        "--pretrain_r", type=bool, default=True, help="use pretrained model or not"
+        "--pretrain_r", type=bool, default=False, help="use pretrained model or not"
     )
     parser.add_argument(
         "--freeze_s",
@@ -120,7 +120,8 @@ def parse_args():
         "--gamma", type=float, default=0.99, help="gamma for reward accumulation"
     )
 
-    # ------------------------- experimental settings specific for testing ---------------------------------------------
+    # ------------------------- experimental settings specific f
+    # or testing ---------------------------------------------
     parser.add_argument(
         "--Ks", nargs="?", default="[20, 40, 60, 80, 100]", help="evaluate K list"
     )

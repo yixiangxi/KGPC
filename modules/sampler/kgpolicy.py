@@ -8,11 +8,18 @@ import networkx as nx
 from tqdm import tqdm
 
 
+# 基于知识图谱的动态负采样器模块 KGPolicy，
+# 其目的是根据知识图谱提供合格的负样本，用于训练推荐系统。
+
+# 图卷积网络模块，用于在知识图谱上进行嵌入学习。
 class GraphConv(nn.Module):
     """
     Graph Convolutional Network
     Input: embedding matrix for knowledge graph entity and adjacency matrix
     Output: gcn embedding for kg entity
+    图卷积网络
+    输入：知识图谱实体的嵌入矩阵和邻接矩阵
+    输出： kg实体的 GCN 嵌入
     """
 
     def __init__(self, in_channel, out_channel, config):
@@ -34,11 +41,17 @@ class GraphConv(nn.Module):
         return x
 
 
+# 负采样器模块 KGPolicy，
+# 它用于根据知识图谱提供合格的负样本。
+# 它包含一个图卷积网络用于知识图谱嵌入学习，并初始化了实体嵌入矩阵。
 class KGPolicy(nn.Module):
     """
     Dynamical negative item sampler based on Knowledge graph
     Input: user, postive item, knowledge graph embedding
     Ouput: qualified negative item
+    基于知识图谱的动态负项采样器
+    输入：用户、正面条目、知识图谱嵌入
+    输出：合格的否定项
     """
 
     def __init__(self, dis, params, config):
@@ -59,7 +72,9 @@ class KGPolicy(nn.Module):
         )
 
     def _initialize_weight(self, n_entities, input_channel):
-        """entities includes items and other entities in knowledge graph"""
+        """entities includes items and other entities in knowledge graph
+            实体包括知识图谱中的项目和其他实体
+        """
         if self.config.pretrain_s:
             kg_embedding = self.params["kg_embedding"]
             entity_embedding = nn.Parameter(kg_embedding)
@@ -74,6 +89,7 @@ class KGPolicy(nn.Module):
 
         return entity_embedding
 
+    # 前向传播方法，用于根据知识图谱生成合格的负样本。它执行了若干步的知识图谱采样，以生成一系列负样本。
     def forward(self, data_batch, adj_matrix, edge_matrix):
         users = data_batch["u_id"]
         pos = data_batch["pos_i_id"]
@@ -87,7 +103,9 @@ class KGPolicy(nn.Module):
         assert k > 0
 
         for _ in range(k):
-            """sample candidate negative items based on knowledge graph"""
+            """sample candidate negative items based on knowledge graph
+            基于知识图谱的候选负面项目样本"""
+
             one_hop, one_hop_logits = self.kg_step(pos, users, adj_matrix, step=1)
 
             candidate_neg, two_hop_logits = self.kg_step(
@@ -106,6 +124,7 @@ class KGPolicy(nn.Module):
 
         return neg_list, prob_list
 
+    # 这是构建边的方法，它根据邻接矩阵构建边。
     def build_edge(self, adj_matrix):
         """build edges based on adj_matrix"""
         sample_edge = self.config.edge_threshold
@@ -122,6 +141,7 @@ class KGPolicy(nn.Module):
         edges = torch.cat((node_index.unsqueeze(1), neighbor_index.unsqueeze(1)), dim=1)
         return edges
 
+    # 知识图谱采样的步骤，它根据图卷积网络的嵌入生成候选的负样本。
     def kg_step(self, pos, user, adj_matrix, step):
         x = self.entity_embedding
         edges = self.edges
@@ -129,7 +149,8 @@ class KGPolicy(nn.Module):
         """knowledge graph embedding using gcn"""
         gcn_embedding = self.gcn(x, edges.t().contiguous())
 
-        """use knowledge embedding to decide candidate negative items"""
+        """use knowledge embedding to decide candidate negative items
+        使用知识嵌入来决定候选负面项目"""
         u_e = gcn_embedding[user]
         u_e = u_e.unsqueeze(dim=2)
         pos_e = gcn_embedding[pos]
@@ -143,7 +164,8 @@ class KGPolicy(nn.Module):
         p = p.squeeze()
         logits = F.softmax(p, dim=1)
 
-        """sample negative items based on logits"""
+        """sample negative items based on logits
+        基于对数的反向抽样"""
         batch_size = logits.size(0)
         if step == 1:
             nid = torch.argmax(logits, dim=1, keepdim=True)
@@ -158,6 +180,7 @@ class KGPolicy(nn.Module):
 
         return candidate_neg, candidate_logits
 
+    # 一个修剪步骤，它根据用户与负样本的相似度获取最合适的负样本。
     @staticmethod
     def prune_step(dis, negs, users, logits):
         with torch.no_grad():
@@ -175,6 +198,7 @@ class KGPolicy(nn.Module):
 
         return good_neg, goog_logits
 
+    # 筛选实体的方法，它确保生成的负样本在指定的实体范围内。
     @staticmethod
     def filter_entity(neg, item_range):
         random_neg = torch.randint(

@@ -13,6 +13,8 @@ class GraphConv(nn.Module):
     """
     Graph Convolutional Network
     embed CKG and using its embedding to calculate prediction score
+    图卷积网络
+    嵌入 CKG 并利用其嵌入计算预测得分
     """
 
     def __init__(self, in_channel, out_channel):
@@ -28,6 +30,8 @@ class GraphConv(nn.Module):
         x = self.dropout(x)  # dropout
         x = F.normalize(x)  # 归一化
         return x
+
+
 
 
 # KGAT 类：这是主要的模型类。

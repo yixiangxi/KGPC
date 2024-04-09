@@ -39,9 +39,9 @@ def get_score(model, n_users, n_items, train_user_dict, s, t):
         score_matrix (torch.Tensor): 得分矩阵，形状为 (t-s) x n_items
     """
 
-    u_e, i_e = torch.chunk(model.all_embed, 2, dim=0)#删除数据进行的修改，确保矩阵相对应
+    #u_e, i_e = torch.chunk(model.all_embed, 2, dim=0)#删除数据进行的修改，确保矩阵相对应
 
-    #u_e, i_e = torch.split(model.all_embed, [n_users, n_items])  # 切分用户嵌入和物品嵌入
+    u_e, i_e = torch.split(model.all_embed, [n_users, n_items])  # 切分用户嵌入和物品嵌入
     #u_e, i_e = torch.split(model.all_embed, [n_users + n_items])
     u_e = u_e[s:t, :]  # 获取当前批次的用户嵌入
 
@@ -79,7 +79,27 @@ def cal_ndcg(topk, test_set, num_pos, k):
     ndcg = dcg / idcg  # 计算NDCG指标
 
     return ndcg
+def get_mrr(topk_index, test_user_dict, s, t):
+    """
+    计算MRR指标。
 
+    Args:
+        topk_index (numpy.ndarray): top-k物品索引数组
+        test_user_dict (dict): 测试集用户字典，包含每个用户的正样本物品列表
+        s (int): 当前批次的起始索引
+        t (int): 当前批次的结束索引
+
+    Returns:
+        mrr (float): MRR指标值
+    """
+    mrr = 0
+    for u in range(s, t):
+        gt_pos = test_user_dict[u]  # 获取当前用户的正样本物品列表
+        topk = topk_index[u - s].tolist()  # 获取当前用户的top-k推荐列表
+        if any(item in topk for item in gt_pos):  # 判断是否有命中物品
+            first_hit_index = min(topk.index(item) for item in gt_pos if item in topk)  # 获取第一个命中物品的索引
+            mrr += 1 / (first_hit_index + 1)  # 计算当前用户的MRR值
+    return mrr
 
 def test_v2(model, ks, ckg, n_batchs=4):
     """
@@ -106,6 +126,7 @@ def test_v2(model, ks, ckg, n_batchs=4):
         "recall": np.zeros(n_k),
         "ndcg": np.zeros(n_k),
         "hit_ratio": np.zeros(n_k),
+        "mrr": np.zeros(n_k),
     }  # 初始化结果字典
 
     batch_size = n_users // n_batchs  # 计算每个批次的用户数量
@@ -119,7 +140,7 @@ def test_v2(model, ks, ckg, n_batchs=4):
 
         score_matrix = get_score(model, n_users, n_items, train_user_dict, s, t)  # 获取得分矩阵
         for i, k in enumerate(ks):
-            precision, recall, ndcg, hr = 0, 0, 0, 0  # 初始化评估指标值
+            precision, recall, ndcg, hr,mrr = 0, 0, 0, 0,0  # 初始化评估指标值
             _, topk_index = torch.topk(score_matrix, k)  # 获取top-k索引
             topk_index = topk_index.cpu().numpy() + n_users  # 将索引转换为numpy数组，并加上用户数量，得到物品ID
 
@@ -138,9 +159,11 @@ def test_v2(model, ks, ckg, n_batchs=4):
 
                 ndcg += cal_ndcg(topk, test_set, num_pos, k)  # 计算NDCG
 
+            mrr = get_mrr(topk_index, test_user_dict, s, t)  # 计算MRR
             result["precision"][i] += precision / n_test_users  # 累加precision
             result["recall"][i] += recall / n_test_users  # 累加recall
             result["ndcg"][i] += ndcg / n_test_users  # 累加NDCG
             result["hit_ratio"][i] += hr / n_test_users  # 累加hit_ratio
+            result["mrr"][i] += mrr / n_test_users  # 累加MRR
 
     return result  # 返回评估结果字典
