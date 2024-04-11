@@ -65,6 +65,11 @@ class CFData(object):
 
         train_user_dict = _generate_dict(self.train_data)
         test_user_dict = _generate_dict(self.test_data)
+
+        # 添加调试语句
+        print("Train User Dict:")
+        for u, i_list in train_user_dict.items():
+            print(u, i_list)
         return train_user_dict, test_user_dict
 
     def _statistic_interactions(self):
