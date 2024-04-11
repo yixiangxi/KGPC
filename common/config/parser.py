@@ -36,7 +36,7 @@ def parse_args():
         "--data_path", nargs="?", default="../Data/", help="Input data path."
     )
     parser.add_argument(
-        "--dataset", nargs="?", default="last-fm", help="Choose a dataset."
+        "--dataset", nargs="?", default="bridge", help="Choose a dataset."
     )
     parser.add_argument("--emb_size", type=int, default=64, help="Embedding size.")
     parser.add_argument(

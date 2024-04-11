@@ -40,14 +40,17 @@ def get_score(model, n_users, n_items, train_user_dict, s, t):
     """
 
     #u_e, i_e = torch.chunk(model.all_embed, 2, dim=0)#删除数据进行的修改，确保矩阵相对应
+    u_e, i_e = torch.chunk(model.all_embed.weight.data, 2, dim=0)
+    #u_e, i_e = torch.split(model.all_embed.data, [n_users, n_items])# 切分用户嵌入和物品嵌入
+    #u_e, i_e = torch.split(model.all_embed.weight.data, [n_users, n_items])
 
-    u_e, i_e = torch.split(model.all_embed, [n_users, n_items])  # 切分用户嵌入和物品嵌入
-    #u_e, i_e = torch.split(model.all_embed, [n_users + n_items])
     u_e = u_e[s:t, :]  # 获取当前批次的用户嵌入
 
     score_matrix = torch.matmul(u_e, i_e.t())  # 计算得分矩阵
     for u in range(s, t):
-        pos = train_user_dict[u]  # 获取当前用户的正样本物品列表
+        # pos = train_user_dict[u]
+        pos = train_user_dict.get(u, [])
+        # 获取当前用户的正样本物品列表
         idx = pos.index(-1) if -1 in pos else len(pos)  # 找到正样本中最后一个-1的索引，若不存在则为正样本长度
         score_matrix[u - s][pos[:idx] - n_users] = -1e5  # 将正样本对应位置的得分设为一个较小的负值，排除已知的正样本
 
@@ -67,12 +70,18 @@ def cal_ndcg(topk, test_set, num_pos, k):
     Returns:
         ndcg (float): NDCG指标值
     """
+    if num_pos < 2:
+        return 0
+
+
     n = min(num_pos, k)  # 计算NDCG的分母，取k和正样本数中的较小值
     nrange = np.arange(n) + 2  # 生成从2到n的序列
     idcg = np.sum(1 / np.log2(nrange))  # 计算IDCG
 
     dcg = 0
-    for i, s in enumerate(topk):
+    # 使用topk[:n]限制只计算前 n个推荐物品的DCG值。
+    # 这样做是为了确保计算NDCG时的分子与分母长度一致，避免出现nan的情况。
+    for i, s in enumerate(topk[:n]):
         if s in test_set:  # 若推荐物品在测试集的正样本中
             dcg += 1 / np.log2(i + 2)  # 累加DCG值
 
@@ -94,7 +103,8 @@ def get_mrr(topk_index, test_user_dict, s, t):
     """
     mrr = 0
     for u in range(s, t):
-        gt_pos = test_user_dict[u]  # 获取当前用户的正样本物品列表
+        # gt_pos = test_user_dict[u]  # 获取当前用户的正样本物品列表
+        gt_pos = test_user_dict.get(u, [])  # 使用 get 方法获取当前用户的正样本物品列表，如果不存在则返回一个空列表
         topk = topk_index[u - s].tolist()  # 获取当前用户的top-k推荐列表
         if any(item in topk for item in gt_pos):  # 判断是否有命中物品
             first_hit_index = min(topk.index(item) for item in gt_pos if item in topk)  # 获取第一个命中物品的索引
@@ -145,7 +155,8 @@ def test_v2(model, ks, ckg, n_batchs=4):
             topk_index = topk_index.cpu().numpy() + n_users  # 将索引转换为numpy数组，并加上用户数量，得到物品ID
 
             for u in range(s, t):
-                gt_pos = test_user_dict[u]  # 获取当前用户的正样本物品列表
+                # gt_pos = test_user_dict[u]  # 获取当前用户的正样本物品列表
+                gt_pos = test_user_dict.get(u, [])  # 使用 get 方法获取当前用户的正样本物品列表，如果不存在则默认为空列表
                 topk = topk_index[u - s]  # 获取当前用户的top-k推荐列表
                 num_pos = len(gt_pos)  # 获取当前用户的正样本数量
 
@@ -154,7 +165,9 @@ def test_v2(model, ks, ckg, n_batchs=4):
                 num_hit = len(topk_set & test_set)  # 计算推荐列表和测试集正样本的交集数量
 
                 precision += num_hit / k  # 计算precision
-                recall += num_hit / num_pos  # 计算recall
+                if num_pos > 0:
+                    recall += num_hit / num_pos  # 计算recall
+                # recall += num_hit / num_pos  # 计算recall
                 hr += 1 if num_hit > 0 else 0  # 计算hit_ratio
 
                 ndcg += cal_ndcg(topk, test_set, num_pos, k)  # 计算NDCG

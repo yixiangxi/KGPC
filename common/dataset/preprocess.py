@@ -16,8 +16,8 @@ class CFData(object):
         self.args_config = args_config
 
         path = args_config.data_path + args_config.dataset
-        train_file = path + "/train.dat"
-        test_file = path + "/test.dat"
+        train_file = path + "/test.dat"
+        test_file = path + "/train.dat"
 
         # 从train_file和test_file中加载评分数据
         self.train_data = self._generate_interactions(train_file)
@@ -65,6 +65,11 @@ class CFData(object):
 
         train_user_dict = _generate_dict(self.train_data)
         test_user_dict = _generate_dict(self.test_data)
+
+        # 添加调试语句
+        print("Train User Dict:")
+        for u, i_list in train_user_dict.items():
+            print(u, i_list)
         return train_user_dict, test_user_dict
 
     def _statistic_interactions(self):
