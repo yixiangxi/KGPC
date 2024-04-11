@@ -228,6 +228,8 @@ def train(train_loader, test_loader, graph, data_config, args_config):
     # 使用MF推荐器,
     # 它接受数据配置和参数配置。
     # 它包括用户数量、物品数量、嵌入大小等信息。
+    # from kgpolicy.modules.recommender.KGAT import KGAT
+    # recommender = KGAT(data_config=data_config, args_config=args_config)
     recommender = MF(data_config=data_config, args_config=args_config)
 
     # 基于知识图谱的动态负采样器模块 KGPolicy，

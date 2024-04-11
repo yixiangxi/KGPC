@@ -40,14 +40,16 @@ def get_score(model, n_users, n_items, train_user_dict, s, t):
     """
 
     #u_e, i_e = torch.chunk(model.all_embed, 2, dim=0)#删除数据进行的修改，确保矩阵相对应
+    u_e, i_e = torch.chunk(model.all_embed.weight.data, 2, dim=0)
+    #u_e, i_e = torch.split(model.all_embed.data, [n_users, n_items])# 切分用户嵌入和物品嵌入
+    #u_e, i_e = torch.split(model.all_embed.weight.data, [n_users, n_items])
 
-    u_e, i_e = torch.split(model.all_embed, [n_users, n_items])  # 切分用户嵌入和物品嵌入
-    #u_e, i_e = torch.split(model.all_embed, [n_users + n_items])
     u_e = u_e[s:t, :]  # 获取当前批次的用户嵌入
 
     score_matrix = torch.matmul(u_e, i_e.t())  # 计算得分矩阵
     for u in range(s, t):
-        pos = train_user_dict[u]  # 获取当前用户的正样本物品列表
+        pos = train_user_dict[u]
+          # 获取当前用户的正样本物品列表
         idx = pos.index(-1) if -1 in pos else len(pos)  # 找到正样本中最后一个-1的索引，若不存在则为正样本长度
         score_matrix[u - s][pos[:idx] - n_users] = -1e5  # 将正样本对应位置的得分设为一个较小的负值，排除已知的正样本
 

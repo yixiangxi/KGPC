@@ -16,8 +16,8 @@ class CFData(object):
         self.args_config = args_config
 
         path = args_config.data_path + args_config.dataset
-        train_file = path + "/train.dat"
-        test_file = path + "/test.dat"
+        train_file = path + "/test.dat"
+        test_file = path + "/train.dat"
 
         # 从train_file和test_file中加载评分数据
         self.train_data = self._generate_interactions(train_file)
