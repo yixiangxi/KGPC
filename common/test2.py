@@ -47,7 +47,10 @@ def get_score(model, n_users, n_items, train_user_dict, s, t):
 
     score_matrix = torch.matmul(u_e, i_e.t())  # 计算得分矩阵
     for u in range(s, t):
-        pos = train_user_dict[u]  # 获取当前用户的正样本物品列表
+        pos = train_user_dict.get(u, [])  # 获取当前用户的正样本物品列表，如果不存在则返回空列表
+        if not pos:  # 如果正样本物品列表为空，则跳过后续操作
+            continue
+        #pos = train_user_dict[u]  # 获取当前用户的正样本物品列表
         idx = pos.index(-1) if -1 in pos else len(pos)  # 找到正样本中最后一个-1的索引，若不存在则为正样本长度
         score_matrix[u - s][pos[:idx] - n_users] = -1e5  # 将正样本对应位置的得分设为一个较小的负值，排除已知的正样本
 
@@ -94,7 +97,11 @@ def get_mrr(topk_index, test_user_dict, s, t):
     """
     mrr = 0
     for u in range(s, t):
-        gt_pos = test_user_dict[u]  # 获取当前用户的正样本物品列表
+        gt_pos = test_user_dict.get(u, [])  # 获取当前用户的正样本物品列表，如果不存在则返回空列表
+        if not gt_pos:  # 如果正样本物品列表为空，则跳过后续操作
+            continue
+        # gt_pos = test_user_dict[u]  # 获取当前用户的正样本物品列表
+
         topk = topk_index[u - s].tolist()  # 获取当前用户的top-k推荐列表
         if any(item in topk for item in gt_pos):  # 判断是否有命中物品
             first_hit_index = min(topk.index(item) for item in gt_pos if item in topk)  # 获取第一个命中物品的索引
@@ -140,19 +147,26 @@ def test_v2(model, ks, ckg, n_batchs=4):
 
         score_matrix = get_score(model, n_users, n_items, train_user_dict, s, t)  # 获取得分矩阵
         for i, k in enumerate(ks):
-            precision, recall, ndcg, hr,mrr = 0, 0, 0, 0,0  # 初始化评估指标值
+            precision, recall, ndcg, hr, mrr = 0, 0, 0, 0, 0  # 初始化评估指标值
             _, topk_index = torch.topk(score_matrix, k)  # 获取top-k索引
             topk_index = topk_index.cpu().numpy() + n_users  # 将索引转换为numpy数组，并加上用户数量，得到物品ID
 
             for u in range(s, t):
-                gt_pos = test_user_dict[u]  # 获取当前用户的正样本物品列表
+                gt_pos = test_user_dict.get(u, [])  # 获取当前用户的正样本物品列表，如果不存在则返回空列表
+                if not gt_pos:  # 如果正样本物品列表为空，则跳过当前用户的处理，进入下一个用户的处理
+                    print(f"User {u} has no positive samples.")
+                    continue
+                else:  # 如果正样本物品列表不为空，则打印正样本列表
+                    print(f"User {u} positive samples: {gt_pos}")
+
                 topk = topk_index[u - s]  # 获取当前用户的top-k推荐列表
                 num_pos = len(gt_pos)  # 获取当前用户的正样本数量
-
+                print(f"获取当前用户的正样本数量{num_pos}")
 
                 topk_set = set(topk)  # 转换为集合方便计算
                 test_set = set(gt_pos)  # 转换为集合方便计算
                 num_hit = len(topk_set & test_set)  # 计算推荐列表和测试集正样本的交集数量
+                print(f"计算推荐列表和测试集正样本的交集数量{num_hit}")
 
                 precision += num_hit / k  # 计算precision
                 recall += num_hit / num_pos  # 计算recall
@@ -161,10 +175,13 @@ def test_v2(model, ks, ckg, n_batchs=4):
                 ndcg += cal_ndcg(topk, test_set, num_pos, k)  # 计算NDCG
 
             mrr = get_mrr(topk_index, test_user_dict, s, t)  # 计算MRR
-            result["precision"][i] += precision / n_test_users  # 累加precision
-            result["recall"][i] += recall / n_test_users  # 累加recall
-            result["ndcg"][i] += ndcg / n_test_users  # 累加NDCG
-            result["hit_ratio"][i] += hr / n_test_users  # 累加hit_ratio
-            result["mrr"][i] += mrr / n_test_users  # 累加MRR
+            result["precision"][i] += precision  # 累加precision
+            result["recall"][i] += recall  # 累加recall
+            result["ndcg"][i] += ndcg  # 累加NDCG
+            result["hit_ratio"][i] += hr  # 累加hit_ratio
+            result["mrr"][i] += mrr  # 累加MRR
+
+    for key in result:
+        result[key] /= n_test_users  # 计算平均值
 
     return result  # 返回评估结果字典

@@ -10,7 +10,7 @@ from copy import deepcopy
 from pathlib import Path
 from prettytable import PrettyTable
 
-from common.test import test_v2
+from common.test2 import test_v2
 from common.utils import early_stopping, print_dict
 from common.config import parse_args
 from common.dataset import CKGData
